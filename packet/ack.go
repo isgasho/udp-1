@@ -1,18 +1,10 @@
-package udp
+package packet
 
 import (
 	"encoding/binary"
 	"fmt"
 	"math"
 )
-
-type Serialize interface {
-	Serialize([]byte) ([]byte, error)
-}
-
-type Deserialize interface {
-	Deserialize([]byte) error
-}
 
 type Ack struct {
 	SequenceNumber uint16
@@ -62,9 +54,4 @@ func NewAck(SequenceNumber uint16, acks []uint16) Ack {
 		SequenceNumber: SequenceNumber,
 		Acks:           acks,
 	}
-}
-
-type Header struct {
-	SequenceNumber uint32
-	Ack            Ack
 }
