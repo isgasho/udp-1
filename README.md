@@ -1,3 +1,5 @@
+⚠️  Do not use this. There's a lot to be worked on here and it's still not complete.
+
 # udp
 🌐 Reliable, thin UDP library for Golang targetting games.
 
