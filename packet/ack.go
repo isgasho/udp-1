@@ -7,8 +7,8 @@ import (
 )
 
 type Ack struct {
-	SequenceNumber uint16
-	Acks           []uint16
+	sequenceNumber uint16
+	acks           []uint16
 }
 
 func distance(newer, older uint16) uint16 {
@@ -20,38 +20,45 @@ func distance(newer, older uint16) uint16 {
 }
 
 func (a *Ack) Serialize(payload []byte) ([]byte, error) {
-	binary.BigEndian.PutUint16(payload[0:], a.SequenceNumber)
+	if len(payload) < 10 {
+		return payload, fmt.Errorf("payload under 10 bytes. length: %d", len(payload))
+	}
+	binary.BigEndian.PutUint16(payload[0:], a.sequenceNumber)
 	var acks uint64
-	for _, ack := range a.Acks {
-		idx := distance(a.SequenceNumber, ack)
-		if idx > 63 {
-			return nil, fmt.Errorf("distance too large too serialize: %d vs %d", a.SequenceNumber, ack)
-		}
-
+	for _, ack := range a.acks {
+		idx := distance(a.sequenceNumber, ack)
 		acks |= (1 << idx)
 	}
 	binary.BigEndian.PutUint64(payload[2:], acks)
 	return payload[6:], nil
 }
 
-func (a *Ack) Deserialize(payload []byte) error {
-	if len(payload) < 8 {
-		return fmt.Errorf("payload under 8 bytes. length: %d", len(payload))
+func (a *Ack) Deserialize(payload []byte) ([]byte, error) {
+	if len(payload) < 10 {
+		return payload, fmt.Errorf("payload under 10 bytes. length: %d", len(payload))
 	}
-
-	a.SequenceNumber = binary.BigEndian.Uint16(payload[0:])
+	a.sequenceNumber = binary.BigEndian.Uint16(payload[0:])
 	acks := binary.BigEndian.Uint64(payload[2:])
 	for i := 0; i < 64; i++ {
 		if acks&(1<<i) != 0 {
-			a.Acks = append(a.Acks, distance(a.SequenceNumber, uint16(i)))
+			a.acks = append(a.acks, distance(a.sequenceNumber, uint16(i)))
 		}
 	}
-	return nil
+	return payload, nil
 }
 
-func NewAck(SequenceNumber uint16, acks []uint16) Ack {
-	return Ack{
-		SequenceNumber: SequenceNumber,
-		Acks:           acks,
+func NewAck(SequenceNumber uint16, acks []uint16) (Ack, error) {
+	for _, ack := range acks {
+		if ack > SequenceNumber {
+			return Ack{}, fmt.Errorf("ack > sequence number: %d vs %d", ack, SequenceNumber)
+		}
+		idx := distance(SequenceNumber, ack)
+		if idx > 63 {
+			return Ack{}, fmt.Errorf("distance too large too serialize: %d vs %d", SequenceNumber, ack)
+		}
 	}
+	return Ack{
+		sequenceNumber: SequenceNumber,
+		acks:           acks,
+	}, nil
 }

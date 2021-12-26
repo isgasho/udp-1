@@ -5,5 +5,5 @@ type Serialize interface {
 }
 
 type Deserialize interface {
-	Deserialize([]byte) error
+	Deserialize([]byte) ([]byte, error)
 }

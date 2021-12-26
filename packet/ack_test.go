@@ -6,17 +6,17 @@ import (
 )
 
 func ackEquals(a, b Ack) bool {
-	if a.SequenceNumber != b.SequenceNumber {
+	if a.sequenceNumber != b.sequenceNumber {
 		return false
 	}
-	if len(a.Acks) != len(b.Acks) {
+	if len(a.acks) != len(b.acks) {
 		return false
 	}
 	acks := make(map[uint16]struct{})
-	for _, ack := range a.Acks {
+	for _, ack := range a.acks {
 		acks[ack] = struct{}{}
 	}
-	for _, ack := range b.Acks {
+	for _, ack := range b.acks {
 		if _, ok := acks[ack]; !ok {
 			return false
 		}
@@ -32,24 +32,19 @@ func TestAckSerializeDeserialize(t *testing.T) {
 	}{
 		{
 			name: "basic",
-			ack:  NewAck(42, []uint16{41, 40, 36}),
+			ack:  Ack{42, []uint16{41, 40, 36}},
 		},
 		{
 			name: "rollover",
-			ack:  NewAck(8, []uint16{65534, 65533}),
+			ack:  Ack{8, []uint16{65534, 65533}},
 		},
 		{
 			name: "rollover pt. 2",
-			ack:  NewAck(50, []uint16{65534, 65533}),
+			ack:  Ack{50, []uint16{49, 38, 36, 65534, 65533}},
 		},
 		{
 			name: "distance just right",
-			ack:  NewAck(100, []uint16{37}),
-		},
-		{
-			name:      "distance too large",
-			ack:       NewAck(100, []uint16{36}),
-			expectErr: true,
+			ack:  Ack{100, []uint16{37}},
 		},
 	}
 
@@ -57,23 +52,17 @@ func TestAckSerializeDeserialize(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			payload := make([]byte, 1200)
 			_, err := tc.ack.Serialize(payload)
-			if tc.expectErr {
-				log.Println(err)
-				if err == nil {
-					t.Error("expected error")
-				}
-				return
-			} else {
-				if err != nil {
-					t.Error("unexpected erorr", err)
-					return
-				}
+			if err != nil {
+				t.Fatal("unexpected erorr", err)
 			}
 
 			var deserialized Ack
-			deserialized.Deserialize(payload)
+			_, err = deserialized.Deserialize(payload)
+			if err != nil {
+				t.Fatal("unexpected erorr", err)
+			}
 
-			log.Println("serialized", tc.ack)
+			log.Println("serialized  ", tc.ack)
 			log.Println("deserialized", deserialized)
 			if !ackEquals(tc.ack, deserialized) {
 				t.Error("acks not equal after serialize -> deserialize")
